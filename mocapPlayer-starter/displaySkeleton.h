@@ -67,6 +67,7 @@ protected:
   GLuint m_BoneList[MAX_SKELS];		//display list with bones
 
   static float jointColors[NUMBER_JOINT_COLORS][3];
+  static float boneColors[NUMBER_JOINT_COLORS][3];
 };
 
 #endif

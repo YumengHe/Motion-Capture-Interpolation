@@ -6,6 +6,13 @@
 #include "interpolator.h"
 #include "types.h"
 #include <iostream>
+#include "performanceCounter.h"
+
+PerformanceCounter pc;
+double LEtime = 0.0;
+double LQtime = 0.0;
+double BEtime = 0.0;
+double BQtime = 0.0;
 
 Interpolator::Interpolator()
 {
@@ -182,8 +189,11 @@ Quaternion<double> Interpolator::Double(Quaternion<double> p, Quaternion<double>
 // pInputMotion: input motion
 // pOutputMotion: output motion
 // N: drop N consecutive frames
+void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N) { 
+  std::cout << "Using Linear Euler!!!!!!" << "\n";
 
-void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N) {
+  pc.StartCounter();
+
   int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
 
   int startKeyframe = 0;
@@ -219,11 +229,17 @@ void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOut
 
   for(int frame=startKeyframe+1; frame<inputLength; frame++)
     pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
+  
+  pc.StopCounter();
+  LEtime = pc.GetElapsedTime();
+  std::cout << "Linear Euler computation time: "<< LEtime << std::endl;
 }
 
 void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N) {
   // students should implement this
   std::cout << "Using Bezier Euler!!!!!!" << "\n";
+
+  pc.StartCounter();
 
   int inputLength = pInputMotion->GetNumFrames();
 
@@ -364,167 +380,17 @@ void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOut
   for(int frame=startKeyframe+1; frame<inputLength; frame++) {
     pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
   }
-}
 
-double GetT(double t, double alpha, vector p0, vector p1) {
-  vector d = p1 - p0;
-  double a = d % d; // dot product
-  double b = pow(a, alpha * 0.5);
-  return (b + t);
-}
-
-void Interpolator::CatmullRomInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N) {
-  std::cout << "Using Catmull Rom Euler!!!!!!" << "\n";
-
-  int inputLength = pInputMotion->GetNumFrames();
-
-  int startKeyframe = 0; // qn
-  while (startKeyframe + N + 1 < inputLength) {
-    int endKeyframe = startKeyframe + N + 1; // qn+1
-    int previousKeyframe = startKeyframe - (N + 1); //qn-1
-    int nextKeyframe = endKeyframe + N + 1; //qn+2
-
-    Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-    Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-    Posture * previousPosture;
-    Posture * nextPosture;
-    
-    pOutputMotion->SetPosture(startKeyframe, *startPosture);
-    pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-    // interpolate in between
-    for(int frame=1; frame<=N; frame++) {
-      Posture interpolatedPosture;
-      double u = 1.0 * frame / (N + 1);
-
-      // interpolate root position
-      if(previousKeyframe < 0) { // start
-        nextPosture = pInputMotion->GetPosture(nextKeyframe);
-
-        vector q1, q2, q3;
-        q1 = startPosture->root_pos;
-        q2 = endPosture->root_pos;
-        q3 = nextPosture->root_pos;
-        // a1 = Lerp(q1, Lerp(q3, q2, 2.0), 1/3)
-        vector a1 = Lerp(q1, Lerp(q3, q2, 2.0), 1.0 / 3.0);
-        // an+1_dash = Lerp(Lerp(qn, qn+1, 2.0), qn+2, 0.5)
-        vector a2_dash = Lerp(Lerp(q1, q2, 2.0), q3, 0.5);
-        // bn+1 = Lerp(qn+1, an+1_dash, -1/3)
-        vector b2 = Lerp(q2, a2_dash, 1.0 / 3.0);
-        
-        interpolatedPosture.root_pos = DeCasteljauEuler(u, q1, a1, b2, q2);
-        
-      } else if(nextKeyframe > inputLength) { // end
-        previousPosture = pInputMotion->GetPosture(previousKeyframe);
-
-        vector q0, q1, q2;
-        q0 = previousPosture->root_pos;
-        q1 = startPosture->root_pos;
-        q2 = endPosture->root_pos;
-        // an_dash = Lerp(Lerp(qn-1,qn,2.0),qn+1,0.5)
-        vector a1_dash = Lerp(Lerp(q0, q1, 2.0), q2, 0.5);
-        // an = Lerp(qn, an_dash, 1/3)
-        vector a1 = Lerp(q1, a1_dash, 1.0 / 3.0);
-        // b2 = Lerp(q2, Lerp(q0, q1, 2.0), 1/3)
-        vector b2 = Lerp(q2, Lerp(q0, q1, 2.0), 1.0 / 3.0);
-        
-        interpolatedPosture.root_pos = DeCasteljauEuler(u, q1, a1, b2, q2);
-
-      } else { // middle
-        previousPosture = pInputMotion->GetPosture(previousKeyframe);
-        nextPosture = pInputMotion->GetPosture(nextKeyframe);
-
-        vector p0, p1, p2, p3;
-        p0 = previousPosture->root_pos;
-        p1 = startPosture->root_pos;
-        p2 = endPosture->root_pos;
-        p3 = nextPosture->root_pos;
-        
-        double alpha = 0.5;
-        double t0 = 0.0;
-        double t1 = GetT(t0, alpha, p0, p1);
-        double t2 = GetT(t1, alpha, p1, p2);
-        double t3 = GetT(t2, alpha, p2, p3);
-        double t = u;
-        vector A1 = (t1 - t) / (t1 - t0) * p0 + (t - t0) / (t1 - t0) * p1;
-        vector A2 = (t2 - t) / (t2 - t1) * p1 + (t - t1) / (t2 - t1) * p2;
-        vector A3 = (t3 - t) / (t3 - t2) * p2 + (t - t2) / (t3 - t2) * p3;
-        vector B1 = (t2 - t) / (t2 - t0) * A1 + (t - t0) / (t2 - t0) * A2;
-        vector B2 = (t3 - t) / (t3 - t1) * A2 + (t - t1) / (t3 - t1) * A3;
-        vector C = (t2 - t) / (t2 - t1) * B1 + (t - t1) / (t2 - t1) * B2;
-
-        interpolatedPosture.root_pos = C;
-      }
-
-      // interpolate bone rotations
-      for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++) {
-        if(previousKeyframe < 0) { // start
-          nextPosture = pInputMotion->GetPosture(nextKeyframe);
-
-          vector q1, q2, q3;
-          q1 = startPosture->bone_rotation[bone];
-          q2 = endPosture->bone_rotation[bone];
-          q3 = nextPosture->bone_rotation[bone];
-          // a1 = Lerp(q1, Lerp(q3, q2, 2.0), 1/3)
-          vector a1 = Lerp(q1, Lerp(q3, q2, 2.0), 1.0 / 3.0);
-          // an+1_dash = Lerp(Lerp(qn, qn+1, 2.0), qn+2, 0.5)
-          vector a2_dash = Lerp(Lerp(q1, q2, 2.0), q3, 0.5);
-          // bn+1 = Lerp(qn+1, an+1_dash, -1/3)
-          vector b2 = Lerp(q2, a2_dash, 1.0 / 3.0);
-          
-          interpolatedPosture.bone_rotation[bone] = DeCasteljauEuler(u, q1, a1, b2, q2);
-        
-        } else if(nextKeyframe > inputLength) { // end
-          previousPosture = pInputMotion->GetPosture(previousKeyframe);
-
-          vector q0, q1, q2;
-          q0 = previousPosture->bone_rotation[bone];
-          q1 = startPosture->bone_rotation[bone];
-          q2 = endPosture->bone_rotation[bone];
-          // an_dash = Lerp(Lerp(qn-1,qn,2.0),qn+1,0.5)
-          vector a1_dash = Lerp(Lerp(q0, q1, 2.0), q2, 0.5);
-          // an = Lerp(qn, an_dash, 1/3)
-          vector a1 = Lerp(q1, a1_dash, 1.0 / 3.0);
-          // b2 = Lerp(q2, Lerp(q0, q1, 2.0), 1/3)
-          vector b2 = Lerp(q2, Lerp(q0, q1, 2.0), 1.0 / 3.0);
-          
-          interpolatedPosture.bone_rotation[bone] = DeCasteljauEuler(u, q1, a1, b2, q2);
-
-        } else { // middle
-          previousPosture = pInputMotion->GetPosture(previousKeyframe);
-          nextPosture = pInputMotion->GetPosture(nextKeyframe);
-
-          vector q0, q1, q2, q3;
-          q0 = previousPosture->bone_rotation[bone];
-          q1 = startPosture->bone_rotation[bone];
-          q2 = endPosture->bone_rotation[bone];
-          q3 = nextPosture->bone_rotation[bone];
-          // a1_dash = Lerp(Lerp(qn-1,qn,2.0),qn+1,0.5)
-          vector a1_dash = Lerp(Lerp(q0, q1, 2.0), q2, 0.5);
-          // a1 = Lerp(qn, an_dash, 1/3)
-          vector a1 = Lerp(q1, a1_dash, 1.0 / 3.0);
-          // a2_dash = Lerp(Lerp(qn, qn+1, 2.0), qn+2, 0.5)
-          vector a2_dash = Lerp(Lerp(q1, q2, 2.0), q3, 0.5);
-          // b2 = Lerp(qn+1, an+1_dash, -1/3)
-          vector b2 = Lerp(q2, a2_dash, - 1.0 / 3.0);
-          
-          interpolatedPosture.bone_rotation[bone] = DeCasteljauEuler(u, q1, a1, b2, q2);
-        }
-      }
-      
-      pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-    }
-    startKeyframe = endKeyframe;
-  }
-
-  for(int frame=startKeyframe+1; frame<inputLength; frame++) {
-    pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-  }
+  pc.StopCounter();
+  BEtime = pc.GetElapsedTime();
+  std::cout << "Bezier Euler computation time: "<< BEtime << std::endl;
 }
 
 void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N) {
   // students should implement this
   std::cout << "Using Linear Quaternion!!!!!!" << "\n";
+
+  pc.StartCounter();
 
   int inputLength = pInputMotion->GetNumFrames();
 
@@ -562,11 +428,17 @@ void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion *
   for(int frame=startKeyframe+1; frame<inputLength; frame++) {
     pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
   }
+
+  pc.StopCounter();
+  LQtime = pc.GetElapsedTime();
+  std::cout << "Linear Quaternion computation time: "<< LQtime << std::endl;
 }
 
 void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N) {
   // students should implement this
   std::cout << "Using Bezier Quaternion!!!!!!" << "\n";
+
+  pc.StartCounter();
 
   int inputLength = pInputMotion->GetNumFrames();
 
@@ -718,6 +590,10 @@ void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion *
   for(int frame=startKeyframe+1; frame<inputLength; frame++) {
     pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
   }
+
+  pc.StopCounter();
+  BQtime = pc.GetElapsedTime();
+  std::cout << "Bezier Quaternion computation time: "<< BQtime << std::endl;
 }
 
 // ------ DeCasteljau ------

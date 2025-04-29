@@ -60,8 +60,7 @@ protected:
   void BezierInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N);
   void LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N);
   void BezierInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N);
-  void CatmullRomInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N);
-  
+
   // Bezier spline evaluation
   vector DeCasteljauEuler(double u, vector p0, vector p1, vector p2, vector p3); // evaluate Bezier spline at t, using DeCasteljau construction, vector version
   Quaternion<double> DeCasteljauQuaternion(double u, Quaternion<double> p0, Quaternion<double> p1, Quaternion<double> p2, Quaternion<double> p3); // evaluate Bezier spline at t, using DeCasteljau construction, Quaternion version

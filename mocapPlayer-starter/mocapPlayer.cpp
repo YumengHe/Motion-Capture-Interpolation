@@ -88,14 +88,16 @@ PerformanceCounter saveFileTimeCounter;
 double saveFileTimeCost = -1.0; // if value is negative, it means the data is invalid
 
 void CreateScreenFilename(SaveScreenToFileMode saveToFileMode, int fileCount, char * filename)
-{
+{ 
+  strcpy(filename, "screenshots/");
+
   switch (saveToFileMode)
   {
   case SAVE_ONCE:
-    strcpy(filename, "scr");
+    strcat(filename, "scr");
     break;
   case SAVE_CONTINUOUS:
-    strcpy(filename, "pic");
+    strcat(filename, "pic");
   	break;
   default:
     printf("Error in CreateScreenFilename: saveToFileMode is not recognized.\n");
@@ -792,9 +794,9 @@ void GraphicsInit()
   // 0.0,180.0,150.0,r0.81,g0.81,b0.55,a0.1,d0.4,s0.1,sh120.0
   double groundPlaneHeight = 0.0;
   double groundPlaneSize = 200.0;
-  double groundPlaneR = 0.81;
-  double groundPlaneG = 0.81;
-  double groundPlaneB = 0.55;
+  double groundPlaneR = 0.70;
+  double groundPlaneG = 0.80;
+  double groundPlaneB = 1.00;
   double groundPlaneAmbient = 0.1;
   double groundPlaneDiffuse = 0.9;
   double groundPlaneSpecular = 0.1;

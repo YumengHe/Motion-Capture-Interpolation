@@ -18,9 +18,16 @@ Revision 3 - Jernej Barbic and Yili Zhao, Feb, 2012
 
 float DisplaySkeleton::jointColors[NUMBER_JOINT_COLORS][3] =
 {
-  {0.0f, 1.0f, 0.0f},  // GREEN
-  {1.0f, 0.0f, 0.0f},  // RED
-  {0.0f, 0.0f, 1.0f}   // BLUE
+  {0.0f, 0.2f, 0.0f},  // GREEN
+  {0.2f, 0.0f, 0.0f},  // RED
+  {0.0f, 0.0f, 0.2f}   // BLUE
+};
+
+float DisplaySkeleton::boneColors[NUMBER_JOINT_COLORS][3] =
+{
+  {0.8f, 1.0f, 0.8f},  // GREEN
+  {1.0f, 0.8f, 0.8f},  // RED
+  {0.8f, 0.8f, 1.0f}   // BLUE
 };
 
 DisplaySkeleton::DisplaySkeleton(void)
@@ -82,11 +89,11 @@ void DisplaySkeleton::SetDisplayList(int skeletonID, Bone *bone, GLuint *pBoneLi
   float jointDiffuse[4] = {diffuseFskeleton * jointColors[colorIndex][0], diffuseFskeleton * jointColors[colorIndex][1], diffuseFskeleton * jointColors[colorIndex][2], 1.0};
   float jointSpecular[4] = {specularFskeleton * jointColors[colorIndex][0], specularFskeleton * jointColors[colorIndex][1], specularFskeleton * jointColors[colorIndex][2], 1.0};
 
-  float boneColor[3] = {1.0f, 1.0f, 1.0f};
+  int boneIndex = numSkeletons % NUMBER_JOINT_COLORS;
   float boneShininess = 120.0f; 
-  float boneAmbient[4] = {ambientFskeleton * boneColor[0], ambientFskeleton * boneColor[1], ambientFskeleton * boneColor[2], 1.0};
-  float boneDiffuse[4] = {diffuseFskeleton * boneColor[0], diffuseFskeleton * boneColor[1], diffuseFskeleton * boneColor[2], 1.0};
-  float boneSpecular[4] = {specularFskeleton * boneColor[0], specularFskeleton * boneColor[1], specularFskeleton * boneColor[2], 1.0};
+  float boneAmbient[4] = {ambientFskeleton * boneColors[boneIndex][0], ambientFskeleton * boneColors[boneIndex][1], ambientFskeleton * boneColors[boneIndex][2], 1.0};
+  float boneDiffuse[4] = {diffuseFskeleton * boneColors[boneIndex][0], diffuseFskeleton * boneColors[boneIndex][1], diffuseFskeleton * boneColors[boneIndex][2], 1.0};
+  float boneSpecular[4] = {specularFskeleton * boneColors[boneIndex][0], specularFskeleton * boneColors[boneIndex][1], specularFskeleton * boneColors[boneIndex][2], 1.0};
 
   double jointRadius = 0.10;
   double boneRadius = 0.10;
